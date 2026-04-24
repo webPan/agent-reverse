@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>DeepSeek JSON Viewer</title>
+	<script src="https://cdn.tailwindcss.com"></script>
+	<script>
+		if (window.tailwind) {
+			window.tailwind.config = {
+				theme: {
+					extend: {
+						colors: {
+							ink: "#1b1b18",
+							sand: "#f4efe6",
+							ember: "#c46a2f",
+							moss: "#556b2f",
+							slate: "#45556c"
+						},
+						fontFamily: {
+							sans: ["'Segoe UI'", "'PingFang SC'", "'Microsoft YaHei'", "sans-serif"],
+							mono: ["'Cascadia Code'", "'Consolas'", "monospace"]
+						},
+						boxShadow: {
+							panel: "0 24px 80px rgba(27, 27, 24, 0.12)"
+						}
+					}
+				}
+			};
+		}
+	</script>
+	<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+	<style>
+		:root {
+			color-scheme: light;
+		}
+
+		body {
+			background:
+				radial-gradient(circle at top left, rgba(196, 106, 47, 0.18), transparent 28%),
+				radial-gradient(circle at right 20%, rgba(85, 107, 47, 0.14), transparent 24%),
+				linear-gradient(160deg, #f8f2e8 0%, #efe4d6 55%, #e6dccf 100%);
+		}
+
+		.glass {
+			background: rgba(255, 252, 247, 0.82);
+			backdrop-filter: blur(18px);
+		}
+
+		.hidden { display: none; }
+		.mx-auto { margin-left: auto; margin-right: auto; }
+		.flex { display: flex; }
+		.grid { display: grid; }
+		.min-w-0 { min-width: 0; }
+		.w-full { width: 100%; }
+		.min-h-screen { min-height: 100vh; }
+		.max-w-7xl { max-width: 80rem; }
+		.max-w-3xl { max-width: 48rem; }
+		.max-w-2xl { max-width: 42rem; }
+		.max-h-\[520px\] { max-height: 520px; }
+		.flex-1 { flex: 1 1 0%; }
+		.flex-col { flex-direction: column; }
+		.items-center { align-items: center; }
+		.items-end { align-items: flex-end; }
+		.justify-between { justify-content: space-between; }
+		.justify-center { justify-content: center; }
+		.overflow-hidden { overflow: hidden; }
+		.overflow-auto { overflow: auto; }
+		.space-y-5 > :not([hidden]) ~ :not([hidden]) { margin-top: 1.25rem; }
+		.space-y-4 > :not([hidden]) ~ :not([hidden]) { margin-top: 1rem; }
+		.gap-3 { gap: 0.75rem; }
+		.gap-4 { gap: 1rem; }
+		.gap-6 { gap: 1.5rem; }
+		.rounded-full { border-radius: 9999px; }
+		.rounded-2xl { border-radius: 1rem; }
+		.rounded-\[1\.5rem\] { border-radius: 1.5rem; }
+		.rounded-\[1\.6rem\] { border-radius: 1.6rem; }
+		.rounded-\[2rem\] { border-radius: 2rem; }
+		.border { border-width: 1px; border-style: solid; }
+		.border-b { border-bottom-width: 1px; border-bottom-style: solid; }
+		.border-dashed { border-style: dashed; }
+		.border-white\/60 { border-color: rgba(255, 255, 255, 0.6); }
+		.border-slate-100 { border-color: #f1f5f9; }
+		.border-slate-200\/70 { border-color: rgba(226, 232, 240, 0.7); }
+		.border-slate-200\/80 { border-color: rgba(226, 232, 240, 0.8); }
+		.border-slate-300\/80 { border-color: rgba(203, 213, 225, 0.8); }
+		.bg-white\/80 { background-color: rgba(255, 255, 255, 0.8); }
+		.bg-white\/70 { background-color: rgba(255, 255, 255, 0.7); }
+		.bg-white\/40 { background-color: rgba(255, 255, 255, 0.4); }
+		.bg-ink { background-color: #1b1b18; }
+		.bg-ember { background-color: #c46a2f; }
+		.bg-slate-100 { background-color: #f1f5f9; }
+		.bg-slate-200 { background-color: #e2e8f0; }
+		.bg-amber-100 { background-color: #fef3c7; }
+		.bg-emerald-100 { background-color: #d1fae5; }
+		.bg-sky-100 { background-color: #e0f2fe; }
+		.px-3 { padding-left: 0.75rem; padding-right: 0.75rem; }
+		.px-4 { padding-left: 1rem; padding-right: 1rem; }
+		.px-5 { padding-left: 1.25rem; padding-right: 1.25rem; }
+		.px-6 { padding-left: 1.5rem; padding-right: 1.5rem; }
+		.px-8 { padding-left: 2rem; padding-right: 2rem; }
+		.py-1 { padding-top: 0.25rem; padding-bottom: 0.25rem; }
+		.py-3 { padding-top: 0.75rem; padding-bottom: 0.75rem; }
+		.py-4 { padding-top: 1rem; padding-bottom: 1rem; }
+		.py-5 { padding-top: 1.25rem; padding-bottom: 1.25rem; }
+		.py-8 { padding-top: 2rem; padding-bottom: 2rem; }
+		.p-4 { padding: 1rem; }
+		.p-5 { padding: 1.25rem; }
+		.pb-4 { padding-bottom: 1rem; }
+		.mt-2 { margin-top: 0.5rem; }
+		.mt-3 { margin-top: 0.75rem; }
+		.mt-4 { margin-top: 1rem; }
+		.mt-5 { margin-top: 1.25rem; }
+		.mb-3 { margin-bottom: 0.75rem; }
+		.mb-8 { margin-bottom: 2rem; }
+		.inline-flex { display: inline-flex; }
+		.inline-block { display: inline-block; }
+		.text-xs { font-size: 0.75rem; line-height: 1rem; }
+		.text-sm { font-size: 0.875rem; line-height: 1.25rem; }
+		.text-lg { font-size: 1.125rem; line-height: 1.75rem; }
+		.text-2xl { font-size: 1.5rem; line-height: 2rem; }
+		.text-3xl { font-size: 1.875rem; line-height: 2.25rem; }
+		.text-\[15px\] { font-size: 15px; }
+		.font-medium { font-weight: 500; }
+		.font-semibold { font-weight: 600; }
+		.font-bold { font-weight: 700; }
+		.leading-tight { line-height: 1.25; }
+		.leading-7 { line-height: 1.75rem; }
+		.uppercase { text-transform: uppercase; }
+		.tracking-\[0\.24em\] { letter-spacing: 0.24em; }
+		.tracking-\[0\.28em\] { letter-spacing: 0.28em; }
+		.tracking-\[0\.3em\] { letter-spacing: 0.3em; }
+		.text-white { color: #ffffff; }
+		.text-ink { color: #1b1b18; }
+		.text-sand { color: #f4efe6; }
+		.text-sand\/70 { color: rgba(244, 239, 230, 0.7); }
+		.text-sand\/80 { color: rgba(244, 239, 230, 0.8); }
+		.text-slate { color: #45556c; }
+		.text-slate-500 { color: #64748b; }
+		.text-slate-600 { color: #475569; }
+		.text-slate-700 { color: #334155; }
+		.text-slate-800 { color: #1e293b; }
+		.text-slate-100 { color: #f1f5f9; }
+		.text-amber-800 { color: #92400e; }
+		.text-emerald-800 { color: #065f46; }
+		.text-sky-800 { color: #075985; }
+		.shadow-panel { box-shadow: 0 24px 80px rgba(27, 27, 24, 0.12); }
+		.transition { transition: all 0.2s ease; }
+		.focus\:outline-none:focus { outline: none; }
+		.focus\:ring-4:focus { box-shadow: 0 0 0 4px rgba(254, 215, 170, 0.85); }
+		.focus\:ring-orange-200:focus { box-shadow: 0 0 0 4px rgba(254, 215, 170, 0.85); }
+
+		@media (hover: hover) {
+			.hover\:translate-y-\[-1px\]:hover { transform: translateY(-1px); }
+			.hover\:bg-\[\#af5923\]:hover { background-color: #af5923; }
+		}
+
+		@media (min-width: 640px) {
+			.sm\:px-6 { padding-left: 1.5rem; padding-right: 1.5rem; }
+			.sm\:text-base { font-size: 1rem; line-height: 1.75rem; }
+			.sm\:text-4xl { font-size: 2.25rem; line-height: 2.5rem; }
+			.sm\:flex-row { flex-direction: row; }
+			.sm\:items-end { align-items: flex-end; }
+			.sm\:justify-between { justify-content: space-between; }
+		}
+
+		@media (min-width: 1024px) {
+			.lg\:grid-cols-\[1\.3fr_0\.7fr\] { grid-template-columns: 1.3fr 0.7fr; }
+			.lg\:grid-cols-\[320px_minmax\(0\,1fr\)\] { grid-template-columns: 320px minmax(0, 1fr); }
+			.lg\:px-8 { padding-left: 2rem; padding-right: 2rem; }
+		}
+
+		.prose-view h1,
+		.prose-view h2,
+		.prose-view h3,
+		.prose-view h4 {
+			color: #1b1b18;
+			font-weight: 700;
+			line-height: 1.2;
+			margin-top: 1.3em;
+			margin-bottom: 0.6em;
+		}
+
+		.prose-view h1 { font-size: 1.85rem; }
+		.prose-view h2 { font-size: 1.45rem; }
+		.prose-view h3 { font-size: 1.18rem; }
+		.prose-view,
+		.prose-view p,
+		.prose-view li,
+		.prose-view blockquote {
+			overflow-wrap: anywhere;
+			word-break: break-word;
+		}
+
+		.prose-view p,
+		.prose-view ul,
+		.prose-view ol,
+		.prose-view pre,
+		.prose-view blockquote {
+			margin-bottom: 1rem;
+		}
+
+		.prose-view ul,
+		.prose-view ol {
+			padding-left: 1.2rem;
+		}
+
+		.prose-view ul { list-style: disc; }
+		.prose-view ol { list-style: decimal; }
+
+		.prose-view blockquote {
+			border-left: 4px solid rgba(196, 106, 47, 0.55);
+			padding-left: 1rem;
+			color: #4b5563;
+		}
+
+		.prose-view code {
+			background: rgba(69, 85, 108, 0.1);
+			border-radius: 0.35rem;
+			padding: 0.15rem 0.35rem;
+			font-size: 0.92em;
+		}
+
+		.prose-view pre {
+			background: #1f2937;
+			color: #f9fafb;
+			border-radius: 1rem;
+			overflow-x: auto;
+			white-space: pre-wrap;
+			padding: 1rem;
+		}
+
+		.prose-view pre code {
+			background: transparent;
+			padding: 0;
+			white-space: inherit;
+		}
+
+		.rise-in {
+			animation: rise-in 420ms ease-out;
+		}
+
+		@keyframes rise-in {
+			from {
+				opacity: 0;
+				transform: translateY(18px);
+			}
+			to {
+				opacity: 1;
+				transform: translateY(0);
+			}
+		}
+	</style>
+</head>
+<body class="min-h-screen text-ink">
+	<div class="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 py-8 sm:px-6 lg:px-8">
+		<header class="rise-in mb-8 overflow-hidden rounded-[2rem] border border-white/60 glass shadow-panel">
+			<div class="grid gap-6 px-6 py-8 lg:grid-cols-[1.3fr_0.7fr] lg:px-8">
+				<div>
+					<p class="mb-3 inline-flex rounded-full bg-white/70 px-3 py-1 text-xs font-semibold uppercase tracking-[0.28em] text-slate">Tailwind JSON Workspace</p>
+					<h1 class="max-w-3xl text-3xl font-bold leading-tight sm:text-4xl">DeepSeek JSON 解析查看器</h1>
+					<p class="mt-4 max-w-2xl text-sm leading-7 text-slate-700 sm:text-base">
+						选择本地 JSON 后，页面会自动提取对话文本、工具定义和说明内容，并用兼容性更稳定的本地渲染方式展示。
+					</p>
+				</div>
+				<div class="rounded-[1.6rem] bg-ink px-5 py-5 text-sand">
+					<p class="text-xs uppercase tracking-[0.3em] text-sand/70">当前状态</p>
+					<p id="fileName" class="mt-4 text-lg font-semibold">尚未加载文件</p>
+					<p id="summaryText" class="mt-3 text-sm leading-7 text-sand/80">点击右侧按钮，选择 deepseek_json_20260424_503f75.json 或其他结构相近的导出文件。</p>
+				</div>
+			</div>
+		</header>
+
+		<main class="grid flex-1 gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
+			<aside class="rise-in rounded-[2rem] border border-white/60 glass p-5 shadow-panel">
+				<div class="space-y-5">
+					<div>
+						<p class="text-xs font-semibold uppercase tracking-[0.28em] text-slate">操作</p>
+						<button id="pickFileButton" class="mt-4 inline-flex w-full items-center justify-center rounded-2xl bg-ember px-4 py-3 text-sm font-semibold text-white transition hover:translate-y-[-1px] hover:bg-[#af5923] focus:outline-none focus:ring-4 focus:ring-orange-200">
+							选择并加载 JSON
+						</button>
+						<input id="fileInput" type="file" accept=".json,application/json" class="hidden">
+					</div>
+
+					<div class="rounded-[1.5rem] bg-white/70 p-4">
+						<p class="text-sm font-semibold text-ink">提取结果</p>
+						<dl class="mt-4 space-y-3 text-sm text-slate-700">
+							<div class="flex items-center justify-between gap-4">
+								<dt>文本片段</dt>
+								<dd id="segmentCount" class="font-semibold text-ink">0</dd>
+							</div>
+							<div class="flex items-center justify-between gap-4">
+								<dt>识别角色</dt>
+								<dd id="roleCount" class="font-semibold text-ink">0</dd>
+							</div>
+							<div class="flex items-center justify-between gap-4">
+								<dt>JSON 大小</dt>
+								<dd id="jsonSize" class="font-semibold text-ink">0 KB</dd>
+							</div>
+						</dl>
+					</div>
+
+					<div class="rounded-[1.5rem] border border-dashed border-slate-300/80 bg-white/40 p-4 text-sm leading-7 text-slate-700">
+						优先适配这类包含 <span class="font-mono text-xs">role / content / text / message / tools</span> 字段的对话导出 JSON。长文本和 <span class="font-mono text-xs">\n</span> 会按本地规则保留换行。
+					</div>
+				</div>
+			</aside>
+
+			<section class="rise-in grid min-w-0 gap-6">
+				<div class="rounded-[2rem] border border-white/60 glass p-5 shadow-panel">
+					<div class="flex flex-col gap-3 border-b border-slate-200/70 pb-4 sm:flex-row sm:items-end sm:justify-between">
+						<div>
+							<p class="text-xs font-semibold uppercase tracking-[0.28em] text-slate">Readable View</p>
+							<h2 class="mt-2 text-2xl font-bold">提取后的内容</h2>
+						</div>
+						<p id="emptyHint" class="text-sm text-slate-600">加载文件后，这里会显示可阅读内容。</p>
+					</div>
+					<div id="contentList" class="mt-5 space-y-4"></div>
+				</div>
+			</section>
+		</main>
+	</div>
+
+	<template id="segmentTemplate">
+		<article class="overflow-hidden rounded-[1.5rem] border border-slate-200/80 bg-white/80">
+			<div class="flex items-center justify-between gap-4 border-b border-slate-100 px-5 py-4">
+				<div class="flex items-center gap-3">
+					<span data-role-badge class="rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em]"></span>
+					<span data-index class="text-sm text-slate-500"></span>
+				</div>
+				<span data-format class="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600"></span>
+			</div>
+			<div data-body class="prose-view px-5 py-5 text-[15px] leading-7 text-slate-800"></div>
+		</article>
+	</template>
+
+	<script>
+		const fileInput = document.getElementById("fileInput");
+		const pickFileButton = document.getElementById("pickFileButton");
+		const fileName = document.getElementById("fileName");
+		const summaryText = document.getElementById("summaryText");
+		const segmentCount = document.getElementById("segmentCount");
+		const roleCount = document.getElementById("roleCount");
+		const jsonSize = document.getElementById("jsonSize");
+		const contentList = document.getElementById("contentList");
+		const emptyHint = document.getElementById("emptyHint");
+		const segmentTemplate = document.getElementById("segmentTemplate");
+
+		const rolePalette = {
+			system: "bg-slate-200 text-slate-700",
+			user: "bg-amber-100 text-amber-800",
+			assistant: "bg-emerald-100 text-emerald-800",
+			tool: "bg-sky-100 text-sky-800",
+			unknown: "bg-slate-100 text-slate-700"
+		};
+
+		pickFileButton.addEventListener("click", () => fileInput.click());
+		fileInput.addEventListener("change", async event => {
+			const [file] = event.target.files || [];
+			if (!file) {
+				return;
+			}
+
+			try {
+				const text = await file.text();
+				const parsed = JSON.parse(text);
+				renderFile(file.name, text, parsed);
+			} catch (error) {
+				renderError(file.name, error);
+			}
+		});
+
+		function renderFile(name, text, parsed) {
+			const segments = extractSegments(parsed);
+			const roles = new Set(segments.map(segment => segment.role));
+
+			fileName.textContent = name;
+			summaryText.textContent = segments.length
+				? `已提取 ${segments.length} 段内容，包含对话文本和可识别的 tools 定义。`
+				: "文件已加载，但未识别到可展示的文本或工具定义。";
+			segmentCount.textContent = String(segments.length);
+			roleCount.textContent = String(roles.size);
+			jsonSize.textContent = `${Math.max(1, Math.round(text.length / 1024))} KB`;
+			renderSegments(segments);
+		}
+
+		function renderError(name, error) {
+			fileName.textContent = name || "加载失败";
+			summaryText.textContent = "文件不是合法 JSON，或编码格式不符合预期。";
+			segmentCount.textContent = "0";
+			roleCount.textContent = "0";
+			jsonSize.textContent = "0 KB";
+			contentList.innerHTML = "";
+			emptyHint.textContent = "请重新选择一个有效的 JSON 文件。";
+		}
+
+		function renderSegments(segments) {
+			contentList.innerHTML = "";
+
+			if (!segments.length) {
+				emptyHint.textContent = "未识别到可提取文本或工具定义。";
+				return;
+			}
+
+			emptyHint.textContent = "已按角色和文本结构整理内容。";
+
+			segments.forEach((segment, index) => {
+				const fragment = segmentTemplate.content.cloneNode(true);
+				const badge = fragment.querySelector("[data-role-badge]");
+				const number = fragment.querySelector("[data-index]");
+				const format = fragment.querySelector("[data-format]");
+				const body = fragment.querySelector("[data-body]");
+
+				badge.textContent = segment.role;
+				badge.className = `rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] ${rolePalette[segment.role] || rolePalette.unknown}`;
+				number.textContent = `片段 ${index + 1}`;
+				format.textContent = segment.isMarkdown ? "Markdown" : "Plain Text";
+				body.innerHTML = segment.isMarkdown
+					? renderMarkdown(segment.text)
+					: `<p>${inlineMarkdown(escapeHtml(segment.text)).replace(/\n/g, "<br>")}</p>`;
+
+				contentList.appendChild(fragment);
+			});
+		}
+
+		function extractSegments(value) {
+			const found = [];
+			walk(value, { role: "unknown", parentKey: null }, found);
+
+			const unique = [];
+			const seen = new Set();
+
+			for (const item of found) {
+				const normalized = normalizeDisplayText(item.text).trim();
+				if (!normalized) {
+					continue;
+				}
+
+				const key = `${item.role}::${normalized}`;
+				if (seen.has(key)) {
+					continue;
+				}
+
+				seen.add(key);
+				unique.push({
+					role: item.role,
+					text: normalized,
+					isMarkdown: looksLikeMarkdown(normalized)
+				});
+			}
+
+			return unique;
+		}
+
+		function walk(node, context, found) {
+			if (node == null) {
+				return;
+			}
+
+			if (typeof node === "string") {
+				if (context.captureString && node.trim()) {
+					found.push({ role: context.role || "unknown", text: node });
+				}
+				return;
+			}
+
+			if (Array.isArray(node)) {
+				if (context.parentKey === "tools") {
+					const toolSummary = buildToolSummary(node);
+					if (toolSummary) {
+						found.push({ role: "tool", text: toolSummary });
+					}
+					return;
+				}
+
+				node.forEach(item => walk(item, context, found));
+				return;
+			}
+
+			if (typeof node !== "object") {
+				return;
+			}
+
+			const nextRole = typeof node.role === "string"
+				? node.role.toLowerCase()
+				: context.role;
+
+			if (typeof node.text === "string" && node.text.trim()) {
+				found.push({ role: nextRole || "unknown", text: node.text });
+			}
+
+			if (typeof node.content === "string" && node.content.trim()) {
+				found.push({ role: nextRole || "unknown", text: node.content });
+			}
+
+			if (typeof node.message === "string" && node.message.trim()) {
+				found.push({ role: nextRole || "unknown", text: node.message });
+			}
+
+			if (typeof node.input === "string" && node.input.trim()) {
+				found.push({ role: nextRole || "unknown", text: node.input });
+			}
+
+			if (typeof node.output_text === "string" && node.output_text.trim()) {
+				found.push({ role: nextRole || "unknown", text: node.output_text });
+			}
+
+			Object.entries(node).forEach(([key, value]) => {
+				const shouldCaptureString = key === "text" || key === "content" || key === "message" || key === "input" || key === "output_text";
+				walk(value, { role: nextRole || "unknown", captureString: shouldCaptureString, parentKey: key }, found);
+			});
+		}
+
+		function looksLikeMarkdown(text) {
+			return /(^#|\n#|```|^[-*]\s|\n[-*]\s|^\d+\.\s|\n\d+\.\s|\[[^\]]+\]\([^)]+\)|\|.+\|)/m.test(text);
+		}
+
+		function renderMarkdown(text) {
+			const normalized = normalizeDisplayText(text);
+			const codeBlocks = [];
+			const withCodeTokens = normalized.replace(/```([\s\S]*?)```/g, (_, code) => {
+				const token = `__CODE_BLOCK_${codeBlocks.length}__`;
+				codeBlocks.push(`<pre><code>${escapeHtml(code.trim())}</code></pre>`);
+				return token;
+			});
+
+			const lines = withCodeTokens.split("\n");
+			const htmlParts = [];
+			let paragraphBuffer = [];
+			let lineIndex = 0;
+
+			function flushParagraph() {
+				if (!paragraphBuffer.length) {
+					return;
+				}
+
+				htmlParts.push(`<p>${paragraphBuffer.map(line => inlineMarkdown(escapeHtml(line))).join("<br>")}</p>`);
+				paragraphBuffer = [];
+			}
+
+			while (lineIndex < lines.length) {
+				const rawLine = lines[lineIndex];
+				const line = rawLine.trim();
+
+				if (!line) {
+					flushParagraph();
+					lineIndex += 1;
+					continue;
+				}
+
+				if (/^__CODE_BLOCK_\d+__$/.test(line)) {
+					flushParagraph();
+					htmlParts.push(line);
+					lineIndex += 1;
+					continue;
+				}
+
+				if (/^###\s+/.test(line)) {
+					flushParagraph();
+					htmlParts.push(`<h3>${inlineMarkdown(escapeHtml(line.replace(/^###\s+/, "")))}</h3>`);
+					lineIndex += 1;
+					continue;
+				}
+
+				if (/^##\s+/.test(line)) {
+					flushParagraph();
+					htmlParts.push(`<h2>${inlineMarkdown(escapeHtml(line.replace(/^##\s+/, "")))}</h2>`);
+					lineIndex += 1;
+					continue;
+				}
+
+				if (/^#\s+/.test(line)) {
+					flushParagraph();
+					htmlParts.push(`<h1>${inlineMarkdown(escapeHtml(line.replace(/^#\s+/, "")))}</h1>`);
+					lineIndex += 1;
+					continue;
+				}
+
+				if (/^[-*]\s+/.test(line)) {
+					flushParagraph();
+					const items = [];
+					while (lineIndex < lines.length && /^[-*]\s+/.test(lines[lineIndex].trim())) {
+						items.push(`<li>${inlineMarkdown(escapeHtml(lines[lineIndex].trim().replace(/^[-*]\s+/, "")))}</li>`);
+						lineIndex += 1;
+					}
+					htmlParts.push(`<ul>${items.join("")}</ul>`);
+					continue;
+				}
+
+				if (/^\d+\.\s+/.test(line)) {
+					flushParagraph();
+					const items = [];
+					while (lineIndex < lines.length && /^\d+\.\s+/.test(lines[lineIndex].trim())) {
+						items.push(`<li>${inlineMarkdown(escapeHtml(lines[lineIndex].trim().replace(/^\d+\.\s+/, "")))}</li>`);
+						lineIndex += 1;
+					}
+					htmlParts.push(`<ol>${items.join("")}</ol>`);
+					continue;
+				}
+
+				if (/^>\s?/.test(line)) {
+					flushParagraph();
+					const quotes = [];
+					while (lineIndex < lines.length && /^>\s?/.test(lines[lineIndex].trim())) {
+						quotes.push(inlineMarkdown(escapeHtml(lines[lineIndex].trim().replace(/^>\s?/, ""))));
+						lineIndex += 1;
+					}
+					htmlParts.push(`<blockquote>${quotes.join("<br>")}</blockquote>`);
+					continue;
+				}
+
+				if (/^<[^>]+>$/.test(line)) {
+					flushParagraph();
+					htmlParts.push(`<p>${escapeHtml(line)}</p>`);
+					lineIndex += 1;
+					continue;
+				}
+
+				paragraphBuffer.push(rawLine);
+				lineIndex += 1;
+			}
+
+			flushParagraph();
+
+			return htmlParts
+				.join("")
+				.replace(/__CODE_BLOCK_(\d+)__/g, (_, index) => codeBlocks[Number(index)] || "");
+		}
+
+		function buildToolSummary(tools) {
+			if (!Array.isArray(tools) || !tools.length) {
+				return "";
+			}
+
+			const lines = ["## Tools", ""];
+
+			tools.forEach(tool => {
+				if (!tool || typeof tool !== "object") {
+					return;
+				}
+
+				const params = tool.parameters && typeof tool.parameters === "object"
+					? Object.keys(tool.parameters.properties || {})
+					: [];
+				lines.push(`### ${tool.name || "Unnamed Tool"}`);
+				if (tool.description) {
+					lines.push(tool.description);
+				}
+				if (params.length) {
+					lines.push(`- 参数: ${params.join(", ")}`);
+				}
+				lines.push("");
+			});
+
+			return lines.join("\n").trim();
+		}
+
+		function normalizeDisplayText(text) {
+			return String(text)
+				.replace(/\\r\\n/g, "\n")
+				.replace(/\\n/g, "\n")
+				.replace(/\r\n/g, "\n");
+		}
+
+		function inlineMarkdown(text) {
+			return text
+				.replace(/`([^`]+)`/g, "<code>$1</code>")
+				.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+				.replace(/\*([^*]+)\*/g, "<em>$1</em>")
+				.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer" class="text-slate-700 underline">$1</a>');
+		}
+
+		function escapeHtml(value) {
+			return value
+				.replace(/&/g, "&amp;")
+				.replace(/</g, "&lt;")
+				.replace(/>/g, "&gt;")
+				.replace(/\"/g, "&quot;")
+				.replace(/'/g, "&#39;");
+		}
+	</script>
+</body>
+</html>
