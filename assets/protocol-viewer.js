@@ -66,6 +66,8 @@
     els.rootJsonContent = document.getElementById("rootJsonContent");
     els.timeline = document.getElementById("timeline");
     els.timelineHint = document.getElementById("timelineHint");
+    els.toolsList = document.getElementById("toolsList");
+    els.toolsHint = document.getElementById("toolsHint");
     els.detail = document.getElementById("detail");
     els.copySelectedPath = document.getElementById("copySelectedPath");
     els.tabs = Array.from(document.querySelectorAll(".tab"));
@@ -632,6 +634,7 @@
   function renderAll() {
     renderViewMode();
     renderTimeline();
+    renderToolsPanel();
     renderTabs();
     renderDetail();
   }
@@ -687,6 +690,49 @@
         renderDetail();
       });
     });
+  }
+
+  function renderToolsPanel() {
+    const tools = getToolListEvents();
+    if (!els.toolsList || !els.toolsHint) return;
+
+    els.toolsHint.textContent = tools.length
+      ? `共 ${tools.length} 个工具定义，点击可查看原始 JSON 和描述。`
+      : "当前请求没有 tools 工具定义。";
+
+    if (!tools.length) {
+      els.toolsList.innerHTML = `<div class="empty">没有工具定义。</div>`;
+      return;
+    }
+
+    els.toolsList.innerHTML = tools.map(renderToolItem).join("");
+
+    els.toolsList.querySelectorAll(".tool-item").forEach((item) => {
+      item.addEventListener("click", () => {
+        state.selectedId = item.dataset.id;
+        state.rawScope = "event";
+        renderTimeline();
+        renderToolsPanel();
+        renderDetail();
+      });
+    });
+  }
+
+  function renderToolItem(event) {
+    const active = event.id === state.selectedId ? " active" : "";
+    const name = event.meta.toolName || event.meta.agentType || event.meta.mcpServer || getEventDisplayTitle(event);
+    const summary = getEventDisplaySummary(event);
+
+    return `
+      <article class="tool-item type-${escapeHtml(event.type)}${active}" data-id="${escapeHtml(event.id)}">
+        <div class="tool-item-head">
+          <span class="tool-name">${escapeHtml(name || "unknown")}</span>
+          <span class="badge badge-type">${escapeHtml(typeLabels[event.type] || event.type)}</span>
+        </div>
+        <div class="tool-summary">${escapeHtml(summary || event.text || "无描述")}</div>
+        <div class="event-path">${escapeHtml(event.path)}</div>
+      </article>
+    `;
   }
 
   function groupTimelineEvents(events) {
@@ -1000,7 +1046,21 @@
   }
 
   function getVisibleEvents() {
-    return state.events.slice().sort((a, b) => a.order - b.order);
+    return state.events
+      .filter((event) => !isToolListEvent(event))
+      .slice()
+      .sort((a, b) => a.order - b.order);
+  }
+
+  function getToolListEvents() {
+    return state.events
+      .filter(isToolListEvent)
+      .slice()
+      .sort((a, b) => a.order - b.order);
+  }
+
+  function isToolListEvent(event) {
+    return String(event.path || "").startsWith("$.tools[");
   }
 
   function getSelectedEvent() {

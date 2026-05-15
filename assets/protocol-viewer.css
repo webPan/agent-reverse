@@ -127,13 +127,15 @@ select:focus,
 
 .workspace {
   flex: 1;
-  display: block;
+  display: grid;
+  gap: 16px;
   padding: var(--content-top) calc(var(--detail-width) + var(--page-gutter) + 16px) 24px var(--page-gutter);
   min-height: 0;
 }
 
 .detail-panel,
-.timeline-panel {
+.timeline-panel,
+.tools-panel {
   min-height: 0;
 }
 
@@ -148,6 +150,7 @@ select:focus,
 
 .panel,
 .timeline-panel,
+.tools-panel,
 .detail-panel {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -215,6 +218,62 @@ select:focus,
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+.tools-panel {
+  overflow: hidden;
+}
+
+.tools-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 10px;
+  padding: 14px;
+}
+
+.tool-item {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 120ms ease, box-shadow 120ms ease, background 120ms ease;
+}
+
+.tool-item:hover,
+.tool-item.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.tool-item-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.tool-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #101828;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.tool-summary {
+  display: -webkit-box;
+  margin-top: 8px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
 }
 
 .timeline {
