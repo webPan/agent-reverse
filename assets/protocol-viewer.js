@@ -69,7 +69,6 @@
     els.toolsList = document.getElementById("toolsList");
     els.toolsHint = document.getElementById("toolsHint");
     els.detail = document.getElementById("detail");
-    els.copySelectedPath = document.getElementById("copySelectedPath");
     els.tabs = Array.from(document.querySelectorAll(".tab"));
   }
 
@@ -91,16 +90,6 @@
     els.viewRootJson.addEventListener("click", () => {
       state.viewMode = state.viewMode === "root-json" ? "timeline" : "root-json";
       renderViewMode();
-    });
-
-    els.copySelectedPath.addEventListener("click", async () => {
-      const event = getSelectedEvent();
-      if (!event) return;
-      await navigator.clipboard.writeText(event.path || "");
-      els.copySelectedPath.textContent = "已复制";
-      window.setTimeout(() => {
-        els.copySelectedPath.textContent = "复制 JSONPath";
-      }, 900);
     });
 
     els.tabs.forEach((tab) => {
