@@ -47,14 +47,17 @@
 
   function init() {
     cacheElements();
+    updateLayoutMetrics();
     renderSampleOptions();
     bindEvents();
     const initialIndex = getStoredSampleIndex();
     els.sampleSelect.value = String(initialIndex);
     loadSample(samples[initialIndex]);
+    window.addEventListener("resize", updateLayoutMetrics);
   }
 
   function cacheElements() {
+    els.topbar = document.getElementById("topbar");
     els.sampleSelect = document.getElementById("sampleSelect");
     els.fileInput = document.getElementById("fileInput");
     els.viewRootJson = document.getElementById("viewRootJson");
@@ -112,6 +115,12 @@
     els.sampleSelect.innerHTML = samples
       .map((sample, index) => `<option value="${index}">${escapeHtml(sample.label)}</option>`)
       .join("");
+  }
+
+  function updateLayoutMetrics() {
+    if (!els.topbar) return;
+    const height = Math.ceil(els.topbar.getBoundingClientRect().height);
+    document.documentElement.style.setProperty("--topbar-height", `${height}px`);
   }
 
   function getStoredSampleIndex() {
@@ -664,31 +673,10 @@
       return;
     }
 
-    els.timeline.innerHTML = visible
-      .map((event) => {
-        const active = event.id === state.selectedId ? " active" : "";
-        const roleClass = event.role === "user" ? " role-user" : "";
-        const importance = getEventImportance(event);
-        const title = getEventDisplayTitle(event);
-        const summary = getEventDisplaySummary(event);
-        return `
-          <article class="event-card type-${escapeHtml(event.type)}${roleClass} importance-${importance}${active}" data-id="${escapeHtml(event.id)}">
-            <div class="event-rail">
-              <div class="event-index">${String(event.order).padStart(2, "0")}</div>
-              <div class="event-dot"></div>
-            </div>
-            <div class="event-main">
-              <div class="event-title-row">
-                <span class="event-title">${escapeHtml(title)}</span>
-                <span class="badge">${escapeHtml(event.role)}</span>
-                <span class="badge badge-type">${escapeHtml(typeLabels[event.type] || event.type)}</span>
-              </div>
-              <div class="event-summary">${escapeHtml(summary || "无摘要")}</div>
-              <div class="event-path">${escapeHtml(event.path)}</div>
-            </div>
-          </article>
-        `;
-      })
+    els.timelineHint.textContent = `当前显示 ${visible.length} / ${state.events.length} 个事件，按抓包中的原始对话顺序展示。`;
+
+    els.timeline.innerHTML = groupTimelineEvents(visible)
+      .map((item) => item.events ? renderEventGroup(item) : renderEventCard(item))
       .join("");
 
     els.timeline.querySelectorAll(".event-card").forEach((card) => {
@@ -699,6 +687,79 @@
         renderDetail();
       });
     });
+  }
+
+  function groupTimelineEvents(events) {
+    const groups = [];
+
+    events.forEach((event) => {
+      const key = getMessageGroupKey(event);
+      const last = groups[groups.length - 1];
+
+      if (key && last && last.key === key) {
+        last.events.push(event);
+        return;
+      }
+
+      if (key) {
+        groups.push({ key, role: event.role, events: [event] });
+        return;
+      }
+
+      groups.push(event);
+    });
+
+    return groups.map((group) => {
+      if (!group.events || group.events.length === 1) return group.events ? group.events[0] : group;
+      return group;
+    });
+  }
+
+  function getMessageGroupKey(event) {
+    const match = String(event.path || "").match(/^(\$\.(?:messages|input)\[\d+\])(?:\.(?:content|tool_calls)(?:\[\d+\])?)?/);
+    return match ? match[1] : "";
+  }
+
+  function renderEventGroup(group) {
+    const label = `${group.role || "message"} message`;
+    return `
+      <section class="event-group">
+        <div class="event-group-head">
+          <span>${escapeHtml(label)}</span>
+          <code>${escapeHtml(group.key)}</code>
+          <b>${group.events.length} blocks</b>
+        </div>
+        <div class="event-group-body">
+          ${group.events.map(renderEventCard).join("")}
+        </div>
+      </section>
+    `;
+  }
+
+  function renderEventCard(event) {
+    const active = event.id === state.selectedId ? " active" : "";
+    const roleClass = event.role === "user" ? " role-user" : "";
+    const importance = getEventImportance(event);
+    const title = getEventDisplayTitle(event);
+    const summary = getEventDisplaySummary(event);
+
+    return `
+      <article class="event-card type-${escapeHtml(event.type)}${roleClass} importance-${importance}${active}" data-id="${escapeHtml(event.id)}">
+        <div class="event-rail">
+          <div class="event-index">${String(event.order).padStart(2, "0")}</div>
+          <div class="event-dot"></div>
+        </div>
+        <div class="event-main">
+          <div class="event-title-row">
+            <span class="event-title">${escapeHtml(title)}</span>
+            <span class="badge">${escapeHtml(event.role)}</span>
+            <span class="badge badge-type">${escapeHtml(typeLabels[event.type] || event.type)}</span>
+          </div>
+          <div class="event-summary">${escapeHtml(summary || "无摘要")}</div>
+          <div class="event-path">${escapeHtml(event.path)}</div>
+        </div>
+      </article>
+    `;
   }
 
   function getEventImportance(event) {
@@ -906,10 +967,14 @@
     if (!text) return "";
     if (!window.marked) return escapeHtml(text).replace(/\r?\n/g, "<br>\n");
 
-    return window.marked.parse(escapeHtml(text), {
+    return window.marked.parse(escapeMarkdownHtml(text), {
       breaks: true,
       gfm: true
     });
+  }
+
+  function escapeMarkdownHtml(value) {
+    return String(value ?? "").replace(/</g, "&lt;");
   }
 
   function normalizeDisplayText(text) {
@@ -935,20 +1000,7 @@
   }
 
   function getVisibleEvents() {
-    return state.events.slice().sort(compareLearningOrder);
-  }
-
-  function compareLearningOrder(a, b) {
-    const groupA = learningGroup(a);
-    const groupB = learningGroup(b);
-    if (groupA !== groupB) return groupA - groupB;
-    return a.order - b.order;
-  }
-
-  function learningGroup(event) {
-    if (event.type === "system" || event.role === "system") return 0;
-    if (["tool_definition", "tool_call", "tool_result", "mcp", "skill", "agent"].includes(event.type)) return 2;
-    return 1;
+    return state.events.slice().sort((a, b) => a.order - b.order);
   }
 
   function getSelectedEvent() {
